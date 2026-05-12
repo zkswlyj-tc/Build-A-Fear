@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Build-A-Fear</title>
+
+    <!-- Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playwrite+GB+S:ital,wght@0,100..400;1,100..400&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <main id="app" class="app" data-state="idle">
+      <!-- =====================================================
+           GLOBAL ATMOSPHERE
+           ===================================================== -->
+      <div class="paper-grain" aria-hidden="true"></div>
+      <div class="paper-vignette" aria-hidden="true"></div>
+
+      <!-- whole-page glitch controlled by JS -->
+      <div id="globalGlitch" class="global-glitch" aria-hidden="true">
+        <div class="glitch-slice slice-a"></div>
+        <div class="glitch-slice slice-b"></div>
+        <div class="glitch-slice slice-c"></div>
+      </div>
+
+      <!-- =====================================================
+           TOP BAR
+           ===================================================== -->
+      <header class="topbar">
+        <div class="project-id">
+          <span>Build-A-Fear</span>
+          <span>A Reading Study</span>
+        </div>
+
+        <div class="top-note">
+          <span id="topStatus">nothing scary yet</span>
+        </div>
+      </header>
+
+      <!-- =====================================================
+           MAIN EXPERIENCE
+           ===================================================== -->
+      <section
+        class="experience-layout"
+        aria-label="A reading study about how fear is crafted"
+      >
+        <!-- ===================================================
+             STAGE
+             =================================================== -->
+        <section class="stage-card" aria-label="Object stage">
+          <div id="scene" class="scene">
+            <!-- atmospheric overlays controlled by CSS / JS -->
+            <div class="scene-paper" aria-hidden="true"></div>
+            <div class="scene-frame" aria-hidden="true"></div>
+
+            <!-- locked teddy spotlight -->
+            <div class="scene-shadow-field" aria-hidden="true"></div>
+            <div
+              class="scene-spotlight locked-spotlight"
+              aria-hidden="true"
+            ></div>
+
+            <div class="scene-scanlines" aria-hidden="true"></div>
+
+            <!-- subtle object pressure / halo controlled by CSS states -->
+            <div class="teddy-aura" aria-hidden="true"></div>
+
+            <!-- Teddy image swaps through JS -->
+            <figure class="teddy-wrap" id="teddyWrap">
+              <img
+                id="teddy"
+                class="teddy-img"
+                src="./assets/teddy.png"
+                alt="A hand-drawn teddy bear"
+                draggable="false"
+              />
+            </figure>
+
+            <!-- Caption / voice layer -->
+            <div id="captionBox" class="caption-box" aria-live="polite">
+              <span id="captionText"></span>
+            </div>
+
+            <!-- =================================================
+                 PRIMER / FIRST ANSWER
+                 ================================================= -->
+            <section
+              id="fearPrimer"
+              class="fear-primer"
+              aria-label="Opening question"
+            >
+              <div class="primer-card">
+                <p class="eyebrow">before anything is added</p>
+
+                <h1>Do teddy bears normally scare you?</h1>
+
+                <p class="primer-copy">Answer honestly.</p>
+
+                <div class="primer-actions">
+                  <button
+                    id="bearNoBtn"
+                    class="text-button primer-choice"
+                    type="button"
+                  >
+                    no
+                  </button>
+
+                  <button
+                    id="bearMaybeBtn"
+                    class="text-button primer-choice"
+                    type="button"
+                  >
+                    not really
+                  </button>
+                </div>
+
+                <p id="primerResponse" class="primer-response">
+                  Then let’s see what it takes.
+                </p>
+              </div>
+            </section>
+
+            <!-- =================================================
+                 INTRO
+                 ================================================= -->
+            <section
+              id="introOverlay"
+              class="intro-overlay hidden"
+              aria-label="Introduction"
+            >
+              <div class="intro-card">
+                <p class="eyebrow">begin with a harmless thing</p>
+
+                <h1>Start with the teddy.</h1>
+
+                <p class="intro-copy">
+                  Look at it before anything is named. Notice your first
+                  reaction, then watch how that reaction changes once the
+                  experience gives it a reason.
+                </p>
+                <button
+                  id="beginBtn"
+                  class="text-button primary-button"
+                  type="button"
+                >
+                  begin
+                </button>
+              </div>
+            </section>
+
+            <!-- =================================================
+                 FINAL REVEAL
+                 ================================================= -->
+            <section
+              id="revealOverlay"
+              class="reveal-overlay hidden"
+              aria-label="Result"
+            >
+              <div class="reveal-card">
+                <p class="eyebrow">after</p>
+
+                <h2>The fear was built here.</h2>
+
+                <p class="reveal-copy">
+                  The teddy stayed the same. What changed was the meaning placed
+                  onto it.
+                </p>
+                <section
+                  class="compare-grid"
+                  aria-label="Before and after comparison"
+                >
+                  <article class="compare-card">
+                    <p class="compare-label">before</p>
+
+                    <img
+                      src="./assets/teddy.png"
+                      alt="Original hand-drawn teddy bear"
+                      draggable="false"
+                    />
+                  </article>
+
+                  <article class="compare-card">
+                    <p class="compare-label">after your edits</p>
+
+                    <img
+                      id="revealImage"
+                      src="./assets/teddy_shaded_tore.png"
+                      alt="Edited reading of the teddy bear"
+                      draggable="false"
+                    />
+                  </article>
+                </section>
+
+                <section class="receipt" aria-label="Result receipt">
+                  <article class="receipt-column">
+                    <h3>Started with</h3>
+
+                    <ul>
+                      <li>a toy</li>
+                      <li>no threat</li>
+                      <li>your first answer</li>
+                    </ul>
+                  </article>
+
+                  <article class="receipt-column">
+                    <h3>You added</h3>
+
+                    <ul id="addedList">
+                      <li>nothing yet</li>
+                    </ul>
+                  </article>
+
+                  <article class="receipt-column">
+                    <h3>You created</h3>
+
+                    <ul>
+                      <li>uncertainty</li>
+                      <li>presence</li>
+                      <li>suspicion</li>
+                    </ul>
+                  </article>
+                </section>
+                <div class="final-line">
+                  <p>The teddy was still just a teddy.</p>
+                  <span>the fear came from what was added to it</span>
+                </div>
+
+                <button
+                  id="againBtn"
+                  class="text-button primary-button"
+                  type="button"
+                >
+                  make it again
+                </button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ===================================================
+             TOOL RAIL
+             Image buttons already include their own drawn frames.
+             =================================================== -->
+        <aside class="tool-rail" aria-label="Fear-making layers">
+          <button
+            id="lightsBtn"
+            class="tool-button drawn-button"
+            type="button"
+            data-tool="lights"
+            data-label="low light"
+            disabled
+            aria-label="Add low light"
+          >
+            <img src="./assets/lights_button.png" alt="" draggable="false" />
+          </button>
+
+          <button
+            id="shadingBtn"
+            class="tool-button drawn-button"
+            type="button"
+            data-tool="shading"
+            data-label="shadow"
+            disabled
+            aria-label="Add shadow"
+          >
+            <img src="./assets/shading_button.png" alt="" draggable="false" />
+          </button>
+
+          <button
+            id="cutBtn"
+            class="tool-button drawn-button"
+            type="button"
+            data-tool="cut"
+            data-label="wound"
+            disabled
+            aria-label="Add a wound"
+          >
+            <img src="./assets/cut_button.png" alt="" draggable="false" />
+          </button>
+
+          <button
+            id="lifeBtn"
+            class="tool-button drawn-button"
+            type="button"
+            data-tool="life"
+            data-label="heartbeat"
+            disabled
+            aria-label="Add heartbeat"
+          >
+            <img src="./assets/life_button.png" alt="" draggable="false" />
+          </button>
+
+          <button
+            id="captionBtn"
+            class="tool-button drawn-button"
+            type="button"
+            data-tool="caption"
+            data-label="voice"
+            disabled
+            aria-label="Add voice"
+          >
+            <img src="./assets/caption_button.png" alt="" draggable="false" />
+          </button>
+        </aside>
+      </section>
+
+      <!-- =====================================================
+           BOTTOM INTERFACE
+           ===================================================== -->
+      <footer class="bottombar">
+        <section class="meter-panel" aria-label="Fear reading meter">
+          <div class="meter-track">
+            <div id="meterFill" class="meter-fill"></div>
+          </div>
+
+          <div class="meter-meta">
+            <span id="meterLabel">fear reading / 0%</span>
+            <span id="editCount">layers added / 0</span>
+          </div>
+        </section>
+
+        <section class="status-panel" aria-live="polite">
+          <p id="statusText">Start with your answer. Then start adding.</p>
+        </section>
+
+        <!-- long illustrated transport buttons -->
+        <nav class="transport-panel" aria-label="Playback controls">
+          <button
+            id="playBtn"
+            class="transport-button transport-long drawn-button"
+            type="button"
+            aria-label="Play"
+            disabled
+          >
+            <img src="./assets/play.png" alt="" draggable="false" />
+          </button>
+
+          <button
+            id="stopBtn"
+            class="transport-button transport-long drawn-button"
+            type="button"
+            aria-label="Show result"
+            disabled
+          >
+            <img src="./assets/stop.png" alt="" draggable="false" />
+          </button>
+
+          <button
+            id="replayBtn"
+            class="transport-button transport-long drawn-button hidden"
+            type="button"
+            aria-label="Replay"
+          >
+            <img src="./assets/replay.png" alt="" draggable="false" />
+          </button>
+
+          <button
+            id="soundBtn"
+            class="transport-button sound-toggle drawn-button"
+            type="button"
+            aria-label="Toggle sound"
+          >
+            <img
+              id="soundIcon"
+              src="./assets/sound_on_1.png"
+              alt=""
+              draggable="false"
+            />
+          </button>
+        </nav>
+      </footer>
+
+      <!-- =====================================================
+           AUDIO ASSETS
+           ===================================================== -->
+      <audio id="clickAudio" src="./assets/click.mp3" preload="auto"></audio>
+      <audio id="thudAudio" src="./assets/thud.mp3" preload="auto"></audio>
+
+      <audio
+        id="scissorsAudio"
+        src="./assets/scissors.mp3"
+        preload="auto"
+      ></audio>
+
+      <audio
+        id="heartAudio"
+        src="./assets/bio_heartbeat.mp3"
+        preload="auto"
+        loop
+      ></audio>
+
+      <audio
+        id="breatheAudio"
+        src="./assets/breathing.mp3"
+        preload="auto"
+        loop
+      ></audio>
+
+      <audio
+        id="clockAudio"
+        src="./assets/clock_ticking.mp3"
+        preload="auto"
+        loop
+      ></audio>
+
+      <!-- whisper panning handled in JS -->
+      <audio
+        id="whisperAudio"
+        src="./assets/whisper.mp3"
+        preload="auto"
+        loop
+      ></audio>
+
+      <audio
+        id="creepyBgAudio"
+        src="./assets/creepy_bg.mp3"
+        preload="auto"
+        loop
+      ></audio>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
