@@ -91,6 +91,19 @@ const allAudios = [
   whisperAudio,
   creepyBgAudio
 ].filter(Boolean);
+const waitingScreen = document.getElementById("waitingScreen");
+const startExperienceBtn = document.getElementById("startExperienceBtn");
+
+if (startExperienceBtn) {
+  startExperienceBtn.addEventListener("click", () => {
+    waitingScreen.classList.add("hide");
+
+    // Start whisper only after user clicks, so browser allows audio.
+    if (typeof startWhisper === "function") {
+      startWhisper();
+    }
+  });
+}
 
 /* =========================================================
    WEB AUDIO FOR PANNED WHISPERS
