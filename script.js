@@ -3,7 +3,8 @@
    script.js
    A harmless thing gets accused.
    Core experience:
-   user submits exhibits → suspicion rises → final glitch → verdict.
+   waiting screen → primer → user submits exhibits
+   → suspicion rises → whisper wait → final glitch → reveal.
    ========================================================= */
 
 /* =========================================================
@@ -13,12 +14,25 @@
 const ASSET_PATH = "./assets/";
 
 /* =========================================================
+   TIMING SETTINGS
+   ========================================================= */
+
+const FINAL_WHISPER_WAIT = 8000;
+// waits 8 seconds after all exhibits are submitted
+// so the whispering can intensify before the final glitch
+
+const FINAL_GLITCH_DURATION = 2600;
+
+/* =========================================================
    DOM
    ========================================================= */
 
 const app = document.getElementById("app");
 const scene = document.getElementById("scene");
 const globalGlitch = document.getElementById("globalGlitch");
+
+const waitingScreen = document.getElementById("waitingScreen");
+const startExperienceBtn = document.getElementById("startExperienceBtn");
 
 const topStatus = document.getElementById("topStatus");
 
@@ -92,7 +106,6 @@ const allAudios = [
   creepyBgAudio
 ].filter(Boolean);
 
-
 /* =========================================================
    WEB AUDIO FOR PANNED WHISPERS
    ========================================================= */
@@ -108,6 +121,8 @@ let whisperPanRaf = null;
    ========================================================= */
 
 const state = {
+  waitingCleared: false,
+
   primed: false,
   primerAnswer: "",
   started: false,
@@ -152,7 +167,7 @@ const statusLines = {
   cut: "Exhibit C submitted: a cut.",
   life: "Exhibit D submitted: a pulse.",
   caption: "Exhibit E submitted: a voice.",
-  pending: "The case is complete. Wait for the room to answer.",
+  pending: "The case is complete. Listen before the verdict arrives.",
   peak: "The exhibits are louder than the proof.",
   reveal: "Fear present. Threat unproven.",
   reset: "Back to the object before the case."
@@ -197,30 +212,35 @@ const editLabels = {
 
 window.addEventListener("load", init);
 
-bearNoBtn.addEventListener("click", () => answerPrimer("no"));
-bearMaybeBtn.addEventListener("click", () => answerPrimer("not yet"));
+safeClick(startExperienceBtn, enterFromWaitingScreen);
 
-beginBtn.addEventListener("click", startExperience);
-playBtn.addEventListener("click", startExperience);
+safeClick(bearNoBtn, () => answerPrimer("no"));
+safeClick(bearMaybeBtn, () => answerPrimer("not yet"));
 
-lightsBtn.addEventListener("click", applyLights);
-shadingBtn.addEventListener("click", applyShading);
-cutBtn.addEventListener("click", applyCut);
-lifeBtn.addEventListener("click", applyLife);
-captionBtn.addEventListener("click", applyCaption);
+safeClick(beginBtn, startExperience);
+safeClick(playBtn, startExperience);
 
-stopBtn.addEventListener("click", showReveal);
-againBtn.addEventListener("click", resetExperience);
-replayBtn.addEventListener("click", resetExperience);
+safeClick(lightsBtn, applyLights);
+safeClick(shadingBtn, applyShading);
+safeClick(cutBtn, applyCut);
+safeClick(lifeBtn, applyLife);
+safeClick(captionBtn, applyCaption);
 
-soundBtn.addEventListener("click", toggleSound);
+safeClick(stopBtn, showReveal);
+safeClick(againBtn, resetExperience);
+safeClick(replayBtn, resetExperience);
+
+safeClick(soundBtn, toggleSound);
 
 function init() {
-  teddy.src = `${ASSET_PATH}teddy.png`;
+  if (teddy) {
+    teddy.src = `${ASSET_PATH}teddy.png`;
+  }
+
   state.currentTeddy = `${ASSET_PATH}teddy.png`;
 
-  introOverlay.classList.add("hidden");
-  revealOverlay.classList.add("hidden");
+  hide(introOverlay);
+  hide(revealOverlay);
 
   resetAudio();
 
@@ -230,7 +250,9 @@ function init() {
     "teddy_tore.png",
     "teddy_shaded_tore.png",
     "sound_on.png",
-    "sound_off.png"
+    "sound_off.png",
+    "sound_on_1.png",
+    "sound_off_1.png"
   ]);
 
   setIntensity(0);
@@ -239,9 +261,60 @@ function init() {
 
   lockAllTools();
 
-  playBtn.disabled = true;
-  stopBtn.disabled = true;
-  replayBtn.classList.add("hidden");
+  if (playBtn) playBtn.disabled = true;
+  if (stopBtn) stopBtn.disabled = true;
+  if (replayBtn) replayBtn.classList.add("hidden");
+
+  /*
+    IMPORTANT:
+    If the waiting screen exists, we keep the primer hidden
+    until the user clicks Start Experience.
+  */
+  if (waitingScreen) {
+    state.waitingCleared = false;
+    show(waitingScreen);
+    waitingScreen.classList.remove("hide", "hidden");
+    document.body.classList.add("waiting-active");
+
+    hide(fearPrimer);
+  } else {
+    enterPrimerStage();
+  }
+}
+
+/* =========================================================
+   WAITING / LOADING SCREEN
+   ========================================================= */
+
+function enterFromWaitingScreen() {
+  if (state.waitingCleared) return;
+
+  state.waitingCleared = true;
+
+  unlockAudioContext();
+  playOneShot(clickAudio, 0.12, 1);
+
+  if (waitingScreen) {
+    waitingScreen.classList.add("hide");
+
+    setTimeout(() => {
+      hide(waitingScreen);
+      document.body.classList.remove("waiting-active");
+      enterPrimerStage();
+    }, 850);
+  } else {
+    enterPrimerStage();
+  }
+}
+
+function enterPrimerStage() {
+  show(fearPrimer);
+  hide(introOverlay);
+  hide(revealOverlay);
+
+  if (primerResponse) {
+    primerResponse.textContent = "Notice your first reaction.";
+  }
 
   startPrimerDrift();
 }
@@ -254,13 +327,17 @@ function startPrimerDrift() {
   clearInterval(state.primerDriftTimer);
 
   const lines = [
-   "Notice your first reaction.",
-"A teddy is just a teddy. There's nothing scary about it.",
-"Answer before the experience tells you what to fear.",
-"Nothing has changed yet."
+    "Notice your first reaction.",
+    "A teddy is just a teddy. There is nothing scary about it yet.",
+    "Answer before the experience tells you what to fear.",
+    "Nothing has changed yet."
   ];
 
   let index = 0;
+
+  if (primerResponse) {
+    primerResponse.textContent = lines[index];
+  }
 
   state.primerDriftTimer = setInterval(() => {
     if (state.primed || !primerResponse) return;
@@ -283,19 +360,22 @@ function answerPrimer(answer) {
   playOneShot(clickAudio, 0.12, 0.96);
   startLoop(creepyBgAudio, 0.03, 0.86);
 
-  primerResponse.textContent =
-    answer === "not yet"
-      ? "Hold that not yet. The room will try to turn it into yes."
-      : "Hold that no. The room will try to build a case.";
+  if (primerResponse) {
+    primerResponse.textContent =
+      answer === "not yet"
+        ? "Hold that not yet. The room will try to turn it into yes."
+        : "Hold that no. The room will try to build a case.";
+  }
 
   setStatus("The object begins neutral. The case comes after.", topLines.primer);
 
   triggerWholeWebGlitch(180);
 
   setTimeout(() => {
-    fearPrimer.classList.add("hidden");
-    introOverlay.classList.remove("hidden");
-    playBtn.disabled = false;
+    hide(fearPrimer);
+    show(introOverlay);
+
+    if (playBtn) playBtn.disabled = false;
   }, 1450);
 }
 
@@ -307,9 +387,13 @@ function startExperience() {
   if (!state.primed || state.started || state.finished) return;
 
   state.started = true;
-  app.dataset.state = "started";
-  app.classList.add("started");
-  introOverlay.classList.add("hidden");
+
+  if (app) {
+    app.dataset.state = "started";
+    app.classList.add("started");
+  }
+
+  hide(introOverlay);
 
   unlockAudioContext();
 
@@ -320,8 +404,8 @@ function startExperience() {
   setIntensity(6);
   setStatus(statusLines.start, topLines.start);
 
-  playBtn.disabled = true;
-  stopBtn.disabled = true;
+  if (playBtn) playBtn.disabled = true;
+  if (stopBtn) stopBtn.disabled = true;
 
   enableTool(lightsBtn);
   enableTool(shadingBtn);
@@ -343,7 +427,7 @@ function applyLights() {
 
   registerEdit("lights");
 
-  app.classList.add("lighted");
+  app?.classList.add("lighted");
   markToolUsed(lightsBtn);
 
   setIntensityByEdits();
@@ -369,7 +453,7 @@ function applyShading() {
 
   registerEdit("shading");
 
-  app.classList.add("shadowed");
+  app?.classList.add("shadowed");
   markToolUsed(shadingBtn);
 
   updateTeddyImage();
@@ -385,7 +469,6 @@ function applyShading() {
 
   updateAudioTension();
 
-  /* Cut is only available after shadow. */
   enableTool(cutBtn);
 
   unlockCompare();
@@ -397,7 +480,7 @@ function applyCut() {
 
   registerEdit("cut");
 
-  app.classList.add("cut");
+  app?.classList.add("cut");
   markToolUsed(cutBtn);
 
   updateTeddyImage();
@@ -411,8 +494,8 @@ function applyCut() {
   playOneShot(scissorsAudio, 0.28, 0.94);
   setTimeout(() => playOneShot(thudAudio, 0.15, 0.72), 210);
 
-  captionBox.classList.add("active");
-  captionText.textContent = "[now it looks like something happened]";
+  captionBox?.classList.add("active");
+  if (captionText) captionText.textContent = "[now it looks like something happened]";
 
   startLoop(creepyBgAudio, 0.1, 0.86);
   updateAudioTension();
@@ -429,7 +512,7 @@ function applyLife() {
 
   registerEdit("life");
 
-  app.classList.add("pulsing");
+  app?.classList.add("pulsing");
   markToolUsed(lifeBtn);
 
   setIntensityByEdits();
@@ -457,8 +540,8 @@ function applyCaption() {
 
   registerEdit("caption");
 
-  app.classList.add("captioned");
-  captionBox.classList.add("active");
+  app?.classList.add("captioned");
+  captionBox?.classList.add("active");
   markToolUsed(captionBtn);
 
   setIntensityByEdits();
@@ -519,17 +602,59 @@ function checkForFinalSequence() {
 
   state.finalSequenceStarted = true;
 
-  stopBtn.disabled = true;
+  if (stopBtn) stopBtn.disabled = true;
 
   setStatus(statusLines.pending, topLines.pending);
 
-  captionBox.classList.add("active");
-  captionText.textContent = "[all exhibits submitted]";
+  captionBox?.classList.add("active");
+
+  if (captionText) {
+    captionText.textContent = "[all exhibits submitted]";
+  }
+
+  /*
+    This is the new pause:
+    instead of glitching immediately, the room waits,
+    the whisper grows, and then the final glitch hits.
+  */
+  intensifyBeforeFinalGlitch();
 
   clearTimeout(state.finalSequenceTimer);
   state.finalSequenceTimer = setTimeout(() => {
     triggerFinalGlitchThenReveal();
-  }, 2000);
+  }, FINAL_WHISPER_WAIT);
+}
+
+function intensifyBeforeFinalGlitch() {
+  app?.classList.add("waiting-for-verdict");
+
+  startPannedWhispers(0.22);
+  startLoop(creepyBgAudio, 0.22, 0.78);
+  startLoop(breatheAudio, 0.13, 0.78);
+  startLoop(heartAudio, 0.14, 1.05);
+  startLoop(clockAudio, 0.12, 1.12);
+
+  setWhisperGain(0.38, 1600);
+  setLoopVolume(creepyBgAudio, 0.26, 2500);
+  setLoopVolume(breatheAudio, 0.16, 2500);
+  setLoopVolume(heartAudio, 0.18, 2500);
+  setLoopVolume(clockAudio, 0.16, 2500);
+
+  if (whisperAudio) {
+    whisperAudio.volume = state.muted ? 0 : 0.38;
+    whisperAudio.playbackRate = 0.9;
+  }
+
+  setTimeout(() => {
+    if (state.finished) return;
+
+    if (captionText) {
+      captionText.textContent = "[listen to what the room has made]";
+    }
+
+    setWhisperGain(0.55, 2200);
+    setLoopVolume(creepyBgAudio, 0.32, 2200);
+  }, FINAL_WHISPER_WAIT * 0.45);
 }
 
 function triggerFinalGlitchThenReveal() {
@@ -537,38 +662,44 @@ function triggerFinalGlitchThenReveal() {
 
   state.escalated = true;
 
+  app?.classList.remove("waiting-for-verdict");
+
   setIntensity(100);
   setStatus(statusLines.peak, topLines.peak);
 
-  app.classList.add("maxed", "glitching", "final-glitch");
+  app?.classList.add("maxed", "glitching", "final-glitch");
 
   if (globalGlitch) {
     globalGlitch.classList.add("active");
   }
 
-  captionBox.classList.add("active");
-  captionText.textContent = "[the exhibits are louder than the proof]";
+  captionBox?.classList.add("active");
+
+  if (captionText) {
+    captionText.textContent = "[the exhibits are louder than the proof]";
+  }
 
   playOneShot(scissorsAudio, 0.28, 0.66);
   setTimeout(() => playOneShot(thudAudio, 0.28, 0.58), 420);
   setTimeout(() => triggerWholeWebGlitch(360), 760);
   setTimeout(() => playOneShot(scissorsAudio, 0.22, 0.52), 1120);
 
-  startPannedWhispers(0.18);
-  startLoop(creepyBgAudio, 0.24, 0.78);
+  startPannedWhispers(0.42);
+  setWhisperGain(0.7, 500);
+  startLoop(creepyBgAudio, 0.35, 0.72);
 
   updateAudioTension();
   updateEditCount();
 
   setTimeout(() => {
-    app.classList.remove("final-glitch");
+    app?.classList.remove("final-glitch");
 
     if (globalGlitch) {
       globalGlitch.classList.remove("active");
     }
 
     showReveal();
-  }, 2200);
+  }, FINAL_GLITCH_DURATION);
 }
 
 /* Kept for compatibility if you still call it somewhere. */
@@ -589,7 +720,10 @@ function showReveal() {
   if (!state.started || state.finished) return;
 
   state.finished = true;
-  app.dataset.state = "revealed";
+
+  if (app) {
+    app.dataset.state = "revealed";
+  }
 
   clearTimeout(state.escalationTimer);
   clearTimeout(state.idleTimer);
@@ -597,7 +731,7 @@ function showReveal() {
   clearInterval(state.captionTimer);
   stopOccasionalGlitches();
 
-  app.classList.remove("final-glitch", "glitching");
+  app?.classList.remove("final-glitch", "glitching", "waiting-for-verdict");
 
   if (globalGlitch) {
     globalGlitch.classList.remove("active");
@@ -605,13 +739,16 @@ function showReveal() {
 
   setStatus(statusLines.reveal, topLines.reveal);
 
-  revealImage.src = state.currentTeddy;
+  if (revealImage) {
+    revealImage.src = state.currentTeddy;
+  }
+
   buildReceipt();
 
-  revealOverlay.classList.remove("hidden");
+  show(revealOverlay);
 
-  stopBtn.disabled = true;
-  replayBtn.classList.remove("hidden");
+  if (stopBtn) stopBtn.disabled = true;
+  if (replayBtn) replayBtn.classList.remove("hidden");
 
   softenAudioForReveal();
 }
@@ -623,7 +760,9 @@ function buildReceipt() {
     added.push(`<li>${editLabels.escalation}</li>`);
   }
 
-  addedList.innerHTML = added.length ? added.join("") : "<li>nothing submitted</li>";
+  if (addedList) {
+    addedList.innerHTML = added.length ? added.join("") : "<li>nothing submitted</li>";
+  }
 }
 
 /* =========================================================
@@ -660,40 +799,47 @@ function resetExperience() {
     caption: false
   };
 
-  app.dataset.state = "idle";
+  if (app) {
+    app.dataset.state = "idle";
 
-  app.classList.remove(
-    "started",
-    "lighted",
-    "shadowed",
-    "cut",
-    "pulsing",
-    "captioned",
-    "maxed",
-    "flash",
-    "glitching",
-    "final-glitch"
-  );
+    app.classList.remove(
+      "started",
+      "lighted",
+      "shadowed",
+      "cut",
+      "pulsing",
+      "captioned",
+      "maxed",
+      "flash",
+      "glitching",
+      "final-glitch",
+      "waiting-for-verdict"
+    );
+  }
 
   if (globalGlitch) {
     globalGlitch.classList.remove("active");
   }
 
-  teddy.src = `${ASSET_PATH}teddy.png`;
-  teddy.classList.remove("switching");
+  if (teddy) {
+    teddy.src = `${ASSET_PATH}teddy.png`;
+    teddy.classList.remove("switching");
+  }
 
-  captionText.textContent = "";
-  captionBox.classList.remove("active");
+  if (captionText) captionText.textContent = "";
+  captionBox?.classList.remove("active");
 
-  revealOverlay.classList.add("hidden");
-  introOverlay.classList.add("hidden");
-  fearPrimer.classList.remove("hidden");
+  hide(revealOverlay);
+  hide(introOverlay);
+  show(fearPrimer);
 
-  primerResponse.textContent = "A feeling can testify before proof arrives.";
+  if (primerResponse) {
+    primerResponse.textContent = "Notice your first reaction.";
+  }
 
-  playBtn.disabled = true;
-  stopBtn.disabled = true;
-  replayBtn.classList.add("hidden");
+  if (playBtn) playBtn.disabled = true;
+  if (stopBtn) stopBtn.disabled = true;
+  if (replayBtn) replayBtn.classList.add("hidden");
 
   lockAllTools();
   resetToolButtons();
@@ -721,7 +867,12 @@ function registerEdit(name) {
 }
 
 function canUseTool(name) {
-  return state.started && !state.finished && !state.edits[name] && !state.finalSequenceStarted;
+  return (
+    state.started &&
+    !state.finished &&
+    !state.edits[name] &&
+    !state.finalSequenceStarted
+  );
 }
 
 function enableTool(button) {
@@ -742,7 +893,7 @@ function lockAllTools() {
 
 function resetToolButtons() {
   [lightsBtn, shadingBtn, cutBtn, lifeBtn, captionBtn].forEach((button) => {
-    button.classList.remove("active");
+    if (button) button.classList.remove("active");
   });
 }
 
@@ -754,7 +905,7 @@ function markToolUsed(button) {
 
 function unlockCompare() {
   if (state.finalSequenceStarted) return;
-  stopBtn.disabled = false;
+  if (stopBtn) stopBtn.disabled = false;
 }
 
 function setStatus(mainText, topText) {
@@ -832,6 +983,8 @@ function addCommitPulse() {
 }
 
 function addCommitFlash() {
+  if (!app) return;
+
   app.classList.add("flash");
 
   setTimeout(() => {
@@ -847,13 +1000,19 @@ function startCaptionCycle() {
   clearInterval(state.captionTimer);
 
   state.captionIndex = 0;
-  captionText.textContent = captionLines[state.captionIndex];
+
+  if (captionText) {
+    captionText.textContent = captionLines[state.captionIndex];
+  }
 
   state.captionTimer = setInterval(() => {
     if (state.finished || state.finalSequenceStarted) return;
 
     state.captionIndex = (state.captionIndex + 1) % captionLines.length;
-    captionText.textContent = captionLines[state.captionIndex];
+
+    if (captionText) {
+      captionText.textContent = captionLines[state.captionIndex];
+    }
   }, 2800);
 }
 
@@ -894,7 +1053,7 @@ function stopOccasionalGlitches() {
 }
 
 function triggerWholeWebGlitch(duration = 260) {
-  if (!globalGlitch || state.finished) return;
+  if (!globalGlitch || state.finished || !app) return;
 
   app.classList.add("glitching");
   globalGlitch.classList.add("active");
@@ -1006,6 +1165,7 @@ function startPannedWhispers(volume = 0.3) {
     console.warn("Whisper setup failed:", error);
   }
 }
+
 function animateWhisperPan() {
   if (!whisperPanner || !audioContext) return;
 
@@ -1076,7 +1236,7 @@ function setLoopVolume(audio, targetVolume, duration = 700) {
 function updateAudioTension() {
   const level = state.intensity / 100;
 
-  if (state.edits.life) {
+  if (state.edits.life && heartAudio) {
     startLoop(heartAudio, 0.05 + level * 0.12, 0.82 + level * 0.25);
     setLoopVolume(heartAudio, 0.05 + level * 0.12, 900);
     heartAudio.playbackRate = 0.82 + level * 0.25;
@@ -1084,18 +1244,22 @@ function updateAudioTension() {
     startPannedWhispers(0.05 + level * 0.08);
   }
 
-  if (state.edits.lights || state.edits.caption) {
+  if ((state.edits.lights || state.edits.caption) && clockAudio) {
     startLoop(clockAudio, 0.018 + level * 0.09, 0.9 + level * 0.25);
     setLoopVolume(clockAudio, 0.018 + level * 0.09, 900);
     clockAudio.playbackRate = 0.9 + level * 0.25;
   }
 
-  startLoop(breatheAudio, 0.02 + level * 0.1, 0.88 + level * 0.08);
-  setLoopVolume(breatheAudio, 0.02 + level * 0.1, 900);
-  breatheAudio.playbackRate = 0.88 + level * 0.08;
+  if (breatheAudio) {
+    startLoop(breatheAudio, 0.02 + level * 0.1, 0.88 + level * 0.08);
+    setLoopVolume(breatheAudio, 0.02 + level * 0.1, 900);
+    breatheAudio.playbackRate = 0.88 + level * 0.08;
+  }
 
-  startLoop(creepyBgAudio, 0.035 + level * 0.13, 0.88);
-  setLoopVolume(creepyBgAudio, 0.035 + level * 0.13, 900);
+  if (creepyBgAudio) {
+    startLoop(creepyBgAudio, 0.035 + level * 0.13, 0.88);
+    setLoopVolume(creepyBgAudio, 0.035 + level * 0.13, 900);
+  }
 }
 
 function softenAudioForReveal() {
@@ -1147,9 +1311,11 @@ function toggleSound() {
     );
   }
 
-  soundIcon.src = state.muted
-    ? `${ASSET_PATH}sound_off_1.png`
-    : `${ASSET_PATH}sound_on_1.png`;
+  if (soundIcon) {
+    soundIcon.src = state.muted
+      ? `${ASSET_PATH}sound_off_1.png`
+      : `${ASSET_PATH}sound_on_1.png`;
+  }
 
   if (!state.muted && state.started && !state.finished) {
     updateAudioTension();
@@ -1165,6 +1331,26 @@ function preloadImages(files) {
     const image = new Image();
     image.src = `${ASSET_PATH}${file}`;
   });
+}
+
+/* =========================================================
+   VISIBILITY HELPERS
+   ========================================================= */
+
+function show(element) {
+  if (!element) return;
+  element.classList.remove("hidden");
+  element.style.display = "";
+}
+
+function hide(element) {
+  if (!element) return;
+  element.classList.add("hidden");
+}
+
+function safeClick(element, handler) {
+  if (!element) return;
+  element.addEventListener("click", handler);
 }
 
 /* =========================================================
